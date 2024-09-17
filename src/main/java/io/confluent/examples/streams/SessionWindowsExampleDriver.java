@@ -15,6 +15,7 @@
  */
 package io.confluent.examples.streams;
 
+import com.google.common.collect.ImmutableMap;
 import io.confluent.examples.streams.avro.PlayEvent;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerializer;
@@ -30,6 +31,15 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+
+import static io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig.USER_INFO_CONFIG;
+import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
+import static org.apache.kafka.clients.CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG;
+import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
+import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
+import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
 
 /**
  * This is a sample driver for the {@link SessionWindowsExample}.
@@ -51,8 +61,10 @@ public class SessionWindowsExampleDriver {
   private static final int NUM_RECORDS_SENT = 8;
 
   public static void main(final String[] args) {
-    final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
-    final String schemaRegistryUrl = args.length > 1 ? args[1] : "http://localhost:8081";
+    final String bootstrapServers =
+            args.length > 0 ? args[0] : "pkc-n3603.us-central1.gcp.confluent.cloud:9092";
+    final String schemaRegistryUrl =
+            args.length > 1 ? args[1] : "https://psrc-r3wv7.us-central1.gcp.confluent.cloud";
     producePlayEvents(bootstrapServers, schemaRegistryUrl);
     consumeOutput(bootstrapServers);
   }
@@ -60,12 +72,28 @@ public class SessionWindowsExampleDriver {
   private static void producePlayEvents(final String bootstrapServers, final String schemaRegistryUrl) {
 
     final SpecificAvroSerializer<PlayEvent> playEventSerializer = new SpecificAvroSerializer<>();
-    final Map<String, String> serdeConfig = Collections.singletonMap(
-        AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+    final Map<String, String> serdeConfig = ImmutableMap.of(
+        SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl,
+            BASIC_AUTH_CREDENTIALS_SOURCE, "USER_INFO",
+            USER_INFO_CONFIG, "SCHEMA-APIKEY:SCHEMA-SECRET");
     playEventSerializer.configure(serdeConfig, false);
 
     final Properties producerProperties = new Properties();
     producerProperties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    producerProperties.put(
+            SASL_JAAS_CONFIG,
+            "org.apache.kafka.common.security.plain.PlainLoginModule required"
+                    + " username='APIKEY'"
+                    + " password='SECRET';");
+    producerProperties.put(ACKS_CONFIG, "all");
+    producerProperties.put(SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+    producerProperties.put(SASL_MECHANISM, "PLAIN");
+    producerProperties.put(SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+    producerProperties.put(BASIC_AUTH_CREDENTIALS_SOURCE, "USER_INFO");
+    producerProperties.put(
+            USER_INFO_CONFIG,
+            "SCHEMA-APIKEY:SCHEMA-SECRET");
+
 
     final KafkaProducer<String, PlayEvent> playEventProducer = new KafkaProducer<>(producerProperties,
                                                                                    Serdes.String() .serializer(),
@@ -140,7 +168,20 @@ public class SessionWindowsExampleDriver {
   private static void consumeOutput(final String bootstrapServers) {
     final Properties consumerProps = new Properties();
     consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "session-windows-consumer");
+    consumerProps.put(
+            SASL_JAAS_CONFIG,
+            "org.apache.kafka.common.security.plain.PlainLoginModule required"
+                    + " username='G36MVUIC2OW3FJSD'"
+                    + " password='F7z+Tyv7W1I3tLgM3fFp8odD/CwO1bPESv0T2phBvMB2kkkkw57ZiAWFg4Lj4VU8';");
+    consumerProps.put(ACKS_CONFIG, "all");
+    consumerProps.put(SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+    consumerProps.put(SASL_MECHANISM, "PLAIN");
+    consumerProps.put(BASIC_AUTH_CREDENTIALS_SOURCE, "USER_INFO");
+    consumerProps.put(
+            USER_INFO_CONFIG,
+            "2D5MSZEVZ53MSLZZ:KhGwm9i6AfO/rncpRlYAvZR1l65ZseO4vNJWPFsQHujj+tD9O2iKia8qXuRpQgZM");
+    
+    consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "session-windows-consumer-local-cloud");
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, Serdes.String().deserializer().getClass());
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, Serdes.Long().deserializer().getClass());

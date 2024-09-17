@@ -15,6 +15,7 @@
  */
 package io.confluent.examples.streams;
 
+import com.google.common.collect.ImmutableMap;
 import io.confluent.examples.streams.avro.PlayEvent;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
@@ -37,7 +38,14 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 
+import static io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static io.confluent.kafka.schemaregistry.client.SchemaRegistryClientConfig.USER_INFO_CONFIG;
+import static io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG;
 import static java.util.Collections.singletonMap;
+import static org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG;
+import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
+import static org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG;
+import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
 
 /**
  * Demonstrates counting user activity (play-events) into Session Windows
@@ -112,11 +120,14 @@ public class SessionWindowsExample {
   static final String PLAY_EVENTS_PER_SESSION = "play-events-per-session";
 
   public static void main(final String[] args) {
-    final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
-    final String schemaRegistryUrl = args.length > 1 ? args[1] : "http://localhost:8081";
+    final String bootstrapServers = args.length > 0 ? args[0] : "pkc-n3603.us-central1.gcp.confluent.cloud:9092";
+    final String schemaRegistryUrl = args.length > 1 ? args[1] : "https://psrc-r3wv7.us-central1.gcp.confluent.cloud";
     final KafkaStreams streams = new KafkaStreams(
-      buildTopology(singletonMap(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)),
-      streamsConfig(bootstrapServers, "/tmp/kafka-streams")
+      buildTopology(ImmutableMap.of(
+              SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl,
+              BASIC_AUTH_CREDENTIALS_SOURCE, "USER_INFO",
+              USER_INFO_CONFIG, "SCHEMA-APIKEY:SCHEMA-SECRET")),
+      streamsConfig(bootstrapServers, "/tmp/kafka-streams-example-cloud")
     );
 
     // Always (and unconditionally) clean local state prior to starting the processing topology.
@@ -141,10 +152,24 @@ public class SessionWindowsExample {
     final Properties config = new Properties();
     // Give the Streams application a unique name.  The name must be unique in the Kafka cluster
     // against which the application is run.
-    config.put(StreamsConfig.APPLICATION_ID_CONFIG, "session-windows-example");
-    config.put(StreamsConfig.CLIENT_ID_CONFIG, "session-windows-example-client");
+    config.put(StreamsConfig.APPLICATION_ID_CONFIG, "session-windows-example-local-cloud");
+    config.put(StreamsConfig.CLIENT_ID_CONFIG, "session-windows-example-client-local-cloud");
     // Where to find Kafka broker(s).
     config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+    config.put(
+            SASL_JAAS_CONFIG,
+            "org.apache.kafka.common.security.plain.PlainLoginModule required"
+                    + " username='APIKEY'"
+                    + " password='SECRET';");
+    config.put(ACKS_CONFIG, "all");
+    config.put(SECURITY_PROTOCOL_CONFIG, "SASL_SSL");
+    config.put(SASL_MECHANISM, "PLAIN");
+    config.put(BASIC_AUTH_CREDENTIALS_SOURCE, "USER_INFO");
+    config.put(
+            USER_INFO_CONFIG,
+            "SCHEMA-APIKEY:SCHEMA-SECRET");
+
+
     config.put(StreamsConfig.STATE_DIR_CONFIG, stateDir);
     // Set to earliest so we don't miss any data that arrived in the topics before the process
     // started
