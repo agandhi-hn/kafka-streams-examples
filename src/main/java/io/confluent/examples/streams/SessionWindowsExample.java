@@ -78,7 +78,7 @@ import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
  * Once packaged you can then run:
  * <pre>
  * {@code
- * $ java -cp target/kafka-streams-examples-7.9.0-0-standalone.jar io.confluent.examples.streams.SessionWindowsExample
+ * $ java -cp target/kafka-streams-examples-8.0.0-0-standalone.jar io.confluent.examples.streams.SessionWindowsExample
  * }
  * </pre>
  * 4) Write some input data to the source topics (e.g. via {@link SessionWindowsExampleDriver}). The
@@ -88,7 +88,7 @@ import static org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM;
  * {@code
  * # Here: Write input data using the example driver. The driver will also consume, and print, the data from the output
  * topic. The driver will stop when it has received all output records
- * $ java -cp target/kafka-streams-examples-7.9.0-0-standalone.jar io.confluent.examples.streams.SessionWindowsExampleDriver
+ * $ java -cp target/kafka-streams-examples-8.0.0-0-standalone.jar io.confluent.examples.streams.SessionWindowsExampleDriver
  * }
  * </pre>
  * You should see output data similar to:
